@@ -22,6 +22,7 @@ const (
 )
 
 func myHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf(">>> Request: %s %s\n", r.Host, r.URL.Path)
 	session, err := store.Get(r, "session_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -59,7 +60,10 @@ func increaseTicketCount(client *redis.Client, ctx context.Context) int64 {
 	return count
 }
 
+func doNothing(w http.ResponseWriter, r *http.Request) {}
+
 func main() {
+	http.HandleFunc("/favicon.ico", doNothing)
 	http.HandleFunc("/", myHandler)
 	http.ListenAndServe(":80", nil)
 }
