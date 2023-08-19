@@ -16,9 +16,11 @@ var (
 )
 
 const (
-	RedisAddr     = "localhost:6379"
-	RedisPassword = ""
-	ExpiredTime   = time.Hour
+	RedisAddr                   = "localhost:6379"
+	RedisPassword               = ""
+	ExpiredTime                 = time.Hour
+	TicketedCountTopic          = "ticketed_num"
+	AccessibleTicketNumberTopic = "accessible_ticket_number"
 )
 
 func myHandler(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +53,7 @@ func connRedis() (*redis.Client, context.Context) {
 }
 
 func increaseTicketCount(client *redis.Client, ctx context.Context) int64 {
-	count, err := client.Incr(ctx, "ticket_count").Result()
+	count, err := client.Incr(ctx, TicketedCountTopic).Result()
 	if err != nil {
 		panic(err)
 	}
