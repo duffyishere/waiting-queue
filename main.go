@@ -3,14 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/gorilla/sessions"
 	"net/http"
-)
-
-var (
-	// key must be 16, 24 or 32 bytes long (AES-128, AES-192 or AES-256)
-	key   = []byte("gEdbih-reqfyf-1p1")
-	store = sessions.NewCookieStore(key)
 )
 
 func waitingLine(w http.ResponseWriter, r *http.Request) {
