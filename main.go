@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
-	"github.com/redis/go-redis/v9"
 	"net/http"
 )
 
@@ -15,28 +13,12 @@ var (
 	store = sessions.NewCookieStore(key)
 )
 
-const (
-	RedisAddr     = "localhost:6379"
-	RedisPassword = ""
-	TopicName     = "test"
-)
-
 func waitingLine(w http.ResponseWriter, r *http.Request) {
 	requestId := w.Header().Get("request-id")
 	if requestId == "" {
 		return
 	}
-}
-
-func connRedis() (*redis.Client, context.Context) {
-	client := redis.NewClient(&redis.Options{
-		Addr:     RedisAddr,
-		Password: RedisPassword,
-		DB:       0,
-	})
-	ctx := context.Background()
-
-	return client, ctx
+	addLine(requestId)
 }
 
 func doNothing(w http.ResponseWriter, r *http.Request) {}
