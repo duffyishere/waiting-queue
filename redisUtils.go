@@ -29,3 +29,12 @@ func addLine(requestId string) {
 		panic(err)
 	}
 }
+
+func getRequestN(start, stop int64) []string {
+	client, ctx := connRedis()
+	result, err := client.ZRange(ctx, Topic, start, stop).Result()
+	if err != nil {
+		panic(err)
+	}
+	return result
+}
