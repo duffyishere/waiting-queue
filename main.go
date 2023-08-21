@@ -71,6 +71,8 @@ func main() {
 	http.ListenAndServe(":80", mux)
 }
 
+const KafkaTopicName = "streaming.extra-user-capacity-num"
+
 func updateUserCapacity() {
 	c, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers": "localhost:29092",
@@ -81,7 +83,7 @@ func updateUserCapacity() {
 		panic(err)
 	}
 
-	c.SubscribeTopics([]string{"user_capacity"}, nil)
+	c.SubscribeTopics([]string{"KafkaTopicName"}, nil)
 
 	run := true
 	for run {
