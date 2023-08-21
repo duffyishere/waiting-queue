@@ -5,16 +5,24 @@ import (
 	"testing"
 )
 
+var requestId = "testRequestId2"
+
 func TestAddLine(t *testing.T) {
-	addLine("testRequestId2")
+	addLine(requestId)
 }
 
-func TestGetRequestN(t *testing.T) {
-	result := getLineRange(0, 1)
-	fmt.Println(result)
+func TestGetWaitingNumBy(t *testing.T) {
+	fmt.Printf("%s's waiting number: %d\n", requestId, getWaitingNumBy(requestId))
 }
 
-func TestIncreaseCount(t *testing.T) {
-	result := increaseCountBy(1)
-	fmt.Println(result)
+func TestGetLastEnterNum(t *testing.T) {
+	fmt.Println("Last enter number: ", getLastEnterNum())
+}
+
+func TestIncreaseLastEnterNumBy(t *testing.T) {
+	fmt.Println("Increased last enter number: ", increaseLastEnterNumBy(10))
+}
+
+func TestIncreaseWaitingNum(t *testing.T) {
+	fmt.Println("Increased waiting line number: ", increaseWaitingNum())
 }

@@ -17,13 +17,13 @@ func waitingLine(w http.ResponseWriter, r *http.Request) {
 }
 
 func polling(w http.ResponseWriter, r *http.Request) {
-	requestId := getRequestIdFromHeader(w.Header())
-	if checkCanEnter(requestId) {
-		// TODO: 메인 서버의 입장권을 발급 후 전송
-	}
-	else {
-		// TODO: 입장 실패 메시지 전송
-	}
+	//requestId := getRequestIdFromHeader(w.Header())
+	//if checkCanEnter(requestId) {
+	// TODO: 메인 서버의 입장권을 발급 후 전송
+	//}
+	//else {
+	//	TODO: 입장 실패 메시지 전송
+	//}
 }
 
 func checkCanEnter(requestId string) bool {
@@ -57,6 +57,8 @@ func logMiddleWare(next http.Handler) http.Handler {
 }
 
 func main() {
+	go updateUserCapacity()
+
 	mux := http.NewServeMux()
 
 	finalHandler := http.HandlerFunc(waitingLine)
@@ -65,4 +67,8 @@ func main() {
 	mux.HandleFunc("/polling", polling)
 	mux.HandleFunc("/favicon.ico", doNothing)
 	http.ListenAndServe(":80", mux)
+}
+
+func updateUserCapacity() {
+
 }
