@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/redis/go-redis/v9"
+	"strconv"
 	"time"
 )
 
@@ -35,27 +36,31 @@ func addLine(requestId string) {
 	}
 }
 
-func getWaitingNumBy(requestId string) string {
+func getWaitingNumBy(requestId string) int64 {
 	client, ctx := connRedis()
 	result, err := client.Get(ctx, requestId).Result()
 	if err != nil {
 		panic(err)
 	}
-	return result
+	waitingNum, err := strconv.ParseInt(result, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return waitingNum
 }
 
-func increaseCountBy(value int64) int64 {
+func getLastEnterNum() int64 {
 	client, ctx := connRedis()
-	result, err := client.IncrBy(ctx, LastEnterNumTopic, value).Result()
+	result, err := client.IncrBy(ctx, LastEnterNumTopic, 0).Result()
 	if err != nil {
 		panic(err)
 	}
 	return result
 }
 
-func getLastEnterNum() int64 {
+func increaseLastEnterNumBy(value int64) int64 {
 	client, ctx := connRedis()
-	result, err := client.IncrBy(ctx, LastEnterNumTopic, 0).Result()
+	result, err := client.IncrBy(ctx, LastEnterNumTopic, value).Result()
 	if err != nil {
 		panic(err)
 	}
