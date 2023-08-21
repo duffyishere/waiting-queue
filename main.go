@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/google/uuid"
 	"net/http"
+	"time"
 )
 
 const RequestId = "request-id"
@@ -22,7 +24,7 @@ func polling(w http.ResponseWriter, r *http.Request) {
 	// TODO: 메인 서버의 입장권을 발급 후 전송
 	//}
 	//else {
-	//	TODO: 입장 실패 메시지 전송
+	//	TODO: 앞에 남은 대기자 수 전송
 	//}
 }
 
@@ -57,7 +59,7 @@ func logMiddleWare(next http.Handler) http.Handler {
 }
 
 func main() {
-	go updateUserCapacity()
+	updateUserCapacity()
 
 	mux := http.NewServeMux()
 
@@ -70,5 +72,26 @@ func main() {
 }
 
 func updateUserCapacity() {
+	c, err := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers": "localhost:29092",
+		"group.id":          "myGroup",
+		"auto.offset.reset": "earliest",
+	})
+	if err != nil {
+		panic(err)
+	}
 
+	c.SubscribeTopics([]string{"user_capacity"}, nil)
+
+	run := true
+	for run {
+		msg, err := c.ReadMessage(time.Second)
+		if err == nil {
+			fmt.Printf("Message on %s: %s\n", msg.TopicPartition, string(msg.Value))
+		} else if !err.(kafka.Error).IsTimeout() {
+			fmt.Printf("Consumer error: %v (%v)\n", err, msg)
+		}
+	}
+
+	c.Close()
 }
