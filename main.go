@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/google/uuid"
@@ -19,19 +20,37 @@ func waitingLine(w http.ResponseWriter, r *http.Request) {
 	addLine(requestId)
 }
 
-func polling(w http.ResponseWriter, r *http.Request) {
-	//requestId := getRequestIdFromHeader(w.Header())
-	//if checkCanEnter(requestId) {
-	// TODO: 메인 서버의 입장권을 발급 후 전송
-	//}
-	//else {
-	//	TODO: 앞에 남은 대기자 수 전송
-	//}
+type PollingResponse struct {
+	Result        bool   `json:"result"`
+	Ticket        string `json:"ticket"`
+	NowWaitingNum int64  `json:"now_waiting_num"`
 }
 
-func checkCanEnter(requestId string) bool {
+func polling(w http.ResponseWriter, r *http.Request) {
+	requestId := getRequestIdFromHeader(r.Header)
 	waitingNum := getWaitingNumBy(requestId)
-	return waitingNum < userCapacity
+	var data PollingResponse
+	if waitingNum < userCapacity {
+		enterTicket := "test1234"
+		data = PollingResponse{
+			Result:        true,
+			Ticket:        enterTicket,
+			NowWaitingNum: 0,
+		}
+	} else {
+		data = PollingResponse{
+			Result:        false,
+			Ticket:        "",
+			NowWaitingNum: waitingNum,
+		}
+	}
+	jsonData, err := json.Marshal(data)
+	fmt.Println(string(jsonData))
+	if err != nil {
+		panic(err)
+	}
+
+	w.Write(jsonData)
 }
 
 func getRequestIdFromHeader(h http.Header) string {
@@ -44,7 +63,14 @@ func getRequestIdFromHeader(h http.Header) string {
 
 func doNothing(w http.ResponseWriter, r *http.Request) {}
 
-func generateRequestId(next http.Handler) http.Handler {
+func setContentTypeJsonMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
+}
+
+func generateRequestIdMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		xRequestID := uuid.New().String()
 		w.Header().Set(RequestId, xRequestID)
@@ -74,9 +100,11 @@ func main() {
 	mux := http.NewServeMux()
 
 	finalHandler := http.HandlerFunc(waitingLine)
-	mux.Handle("/", generateRequestId(logMiddleWare(finalHandler)))
+	mux.Handle("/", generateRequestIdMiddleware(logMiddleWare(finalHandler)))
 
-	mux.HandleFunc("/polling", polling)
+	pollingHandler := http.HandlerFunc(polling)
+	mux.Handle("/polling", setContentTypeJsonMiddleware(pollingHandler))
+
 	mux.HandleFunc("/favicon.ico", doNothing)
 	http.ListenAndServe(":80", mux)
 }
@@ -91,8 +119,8 @@ func updateUserCapacity(c *kafka.Consumer) {
 		msg, err := c.ReadMessage(time.Second)
 		if err == nil {
 			fmt.Printf("Message on %s: %d\n", msg.TopicPartition, string(msg.Value))
-			additionValue, _ := strconv.ParseInt(string(msg.Value), 10, 64)
-			userCapacity = userCapacity + additionValue
+			additionalUserCapacity, _ := strconv.ParseInt(string(msg.Value), 10, 64)
+			userCapacity = userCapacity + additionalUserCapacity
 			fmt.Printf("Now user capacity: %d\n", userCapacity)
 		} else if !err.(kafka.Error).IsTimeout() {
 			fmt.Printf("Consumer error: %v (%v)\n", err, msg)
