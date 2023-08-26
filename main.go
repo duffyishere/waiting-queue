@@ -10,7 +10,16 @@ import (
 	"time"
 )
 
-const RequestId = "request-id"
+const (
+	RequestIdHeaderKey = "request-id"
+
+	KafkaAddr    = "localhost:29092"
+	KafkaGroupId = "myGroup"
+)
+
+var KafkaTopicNames = []string{
+	"streaming.extra-user-capacity-num",
+}
 
 var userCapacity int64
 
@@ -54,7 +63,7 @@ func polling(w http.ResponseWriter, r *http.Request) {
 }
 
 func getRequestIdFromHeader(h http.Header) string {
-	requestId := h.Get(RequestId)
+	requestId := h.Get(RequestIdHeaderKey)
 	if requestId == "" {
 		panic("The request-id for that request does not exist.")
 	}
@@ -72,15 +81,15 @@ func setContentTypeJsonMiddleware(next http.Handler) http.Handler {
 
 func generateRequestIdMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		xRequestID := uuid.New().String()
-		w.Header().Set(RequestId, xRequestID)
+		requestId := uuid.New().String()
+		w.Header().Set(RequestIdHeaderKey, requestId)
 		next.ServeHTTP(w, r)
 	})
 }
 
 func logMiddleWare(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf(">>> Request: %s %s %s\n", r.Host, r.URL.Path, w.Header().Get("request-id"))
+		fmt.Printf(">>> Host: %s, URL: %s, RequestID: %s\n", r.Host, r.URL.Path, getRequestIdFromHeader(w.Header()))
 		next.ServeHTTP(w, r)
 	})
 }
@@ -101,28 +110,24 @@ func main() {
 	http.ListenAndServe(":80", mux)
 }
 
-var KafkaTopicNames = []string{
-	"streaming.extra-user-capacity-num",
-}
-
 func connectKafka() *kafka.Consumer {
-	c, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost:29092",
-		"group.id":          "myGroup",
+	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers": KafkaAddr,
+		"group.id":          KafkaGroupId,
 		"auto.offset.reset": "earliest",
 	})
 	if err != nil {
 		panic(err)
 	}
-	return c
+	return consumer
 }
 
-func updateUserCapacity(c *kafka.Consumer) {
-	c.SubscribeTopics(KafkaTopicNames, nil)
+func updateUserCapacity(consumer *kafka.Consumer) {
+	consumer.SubscribeTopics(KafkaTopicNames, nil)
 	for {
-		msg, err := c.ReadMessage(time.Second)
+		msg, err := consumer.ReadMessage(time.Second)
 		if err == nil {
-			fmt.Printf("Message on %s: %d\n", msg.TopicPartition, string(msg.Value))
+			fmt.Printf("Message on %s: %s\n", msg.TopicPartition, string(msg.Value))
 			additionalUserCapacity, _ := strconv.ParseInt(string(msg.Value), 10, 64)
 			userCapacity = increaseUserCapacity(additionalUserCapacity)
 			fmt.Printf("Now user capacity: %d\n", userCapacity)
