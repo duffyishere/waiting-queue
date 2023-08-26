@@ -12,7 +12,6 @@ import (
 
 const RequestId = "request-id"
 
-// TODO: 별도의 쓰레드로 항상 Redis 와 동기화 되어있어야 함
 var userCapacity int64
 
 func waitingQueue(w http.ResponseWriter, r *http.Request) {
@@ -31,6 +30,7 @@ func polling(w http.ResponseWriter, r *http.Request) {
 	waitingNum := getWaitingNumBy(requestId)
 	var data PollingResponse
 	if waitingNum < userCapacity {
+		// TODO: 암호화 된 입장권 생성
 		enterTicket := "test1234"
 		data = PollingResponse{
 			Result:        true,
@@ -120,7 +120,7 @@ func updateUserCapacity(c *kafka.Consumer) {
 		if err == nil {
 			fmt.Printf("Message on %s: %d\n", msg.TopicPartition, string(msg.Value))
 			additionalUserCapacity, _ := strconv.ParseInt(string(msg.Value), 10, 64)
-			userCapacity = userCapacity + additionalUserCapacity
+			userCapacity = increaseUserCapacity(additionalUserCapacity)
 			fmt.Printf("Now user capacity: %d\n", userCapacity)
 		} else if !err.(kafka.Error).IsTimeout() {
 			fmt.Printf("Consumer error: %v (%v)\n", err, msg)

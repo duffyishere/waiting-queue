@@ -12,7 +12,7 @@ const (
 	RedisPassword    = ""
 	TopicExpiredTime = time.Hour * 2
 
-	LastEnterNumTopic   = "last_enter_num"
+	UserCapacity        = "user_capacity"
 	NextWaitingNumTopic = "next_waiting_num"
 )
 
@@ -49,18 +49,18 @@ func getWaitingNumBy(requestId string) int64 {
 	return waitingNum
 }
 
-func getLastEnterNum() int64 {
+func getUserCapacity() int64 {
 	client, ctx := connRedis()
-	result, err := client.IncrBy(ctx, LastEnterNumTopic, 0).Result()
+	result, err := client.IncrBy(ctx, UserCapacity, 0).Result()
 	if err != nil {
 		panic(err)
 	}
 	return result
 }
 
-func increaseLastEnterNumBy(value int64) int64 {
+func increaseUserCapacity(value int64) int64 {
 	client, ctx := connRedis()
-	result, err := client.IncrBy(ctx, LastEnterNumTopic, value).Result()
+	result, err := client.IncrBy(ctx, UserCapacity, value).Result()
 	if err != nil {
 		panic(err)
 	}

@@ -16,11 +16,11 @@ func TestGetWaitingNumBy(t *testing.T) {
 }
 
 func TestGetLastEnterNum(t *testing.T) {
-	fmt.Println("Last enter number: ", getLastEnterNum())
+	fmt.Println("Last enter number: ", getUserCapacity())
 }
 
 func TestIncreaseLastEnterNumBy(t *testing.T) {
-	fmt.Println("Increased last enter number: ", increaseLastEnterNumBy(10))
+	fmt.Println("Increased last enter number: ", increaseUserCapacity(10))
 }
 
 func TestIncreaseWaitingNum(t *testing.T) {
