@@ -5,6 +5,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/google/uuid"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -59,7 +60,16 @@ func logMiddleWare(next http.Handler) http.Handler {
 }
 
 func main() {
-	updateUserCapacity()
+	c, err := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers": "localhost:29092",
+		"group.id":          "myGroup",
+		"auto.offset.reset": "earliest",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	go updateUserCapacity(c)
 
 	mux := http.NewServeMux()
 
@@ -75,27 +85,17 @@ var KafkaTopicNames = []string{
 	"streaming.extra-user-capacity-num",
 }
 
-func updateUserCapacity() {
-	c, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost:29092",
-		"group.id":          "myGroup",
-		"auto.offset.reset": "earliest",
-	})
-	if err != nil {
-		panic(err)
-	}
-
+func updateUserCapacity(c *kafka.Consumer) {
 	c.SubscribeTopics(KafkaTopicNames, nil)
-
-	run := true
-	for run {
+	for {
 		msg, err := c.ReadMessage(time.Second)
 		if err == nil {
-			fmt.Printf("Message on %s: %s\n", msg.TopicPartition, string(msg.Value))
+			fmt.Printf("Message on %s: %d\n", msg.TopicPartition, string(msg.Value))
+			additionValue, _ := strconv.ParseInt(string(msg.Value), 10, 64)
+			userCapacity = userCapacity + additionValue
+			fmt.Printf("Now user capacity: %d\n", userCapacity)
 		} else if !err.(kafka.Error).IsTimeout() {
 			fmt.Printf("Consumer error: %v (%v)\n", err, msg)
 		}
 	}
-
-	c.Close()
 }
