@@ -56,7 +56,7 @@ func polling(w http.ResponseWriter, r *http.Request) {
 func getRequestIdFromHeader(h http.Header) string {
 	requestId := h.Get(RequestId)
 	if requestId == "" {
-		panic("해당 요청의 request-id가 존재하지 않습니다.")
+		panic("The request-id for that request does not exist.")
 	}
 	return requestId
 }
@@ -86,16 +86,7 @@ func logMiddleWare(next http.Handler) http.Handler {
 }
 
 func main() {
-	c, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost:29092",
-		"group.id":          "myGroup",
-		"auto.offset.reset": "earliest",
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	go updateUserCapacity(c)
+	go updateUserCapacity(connectKafka())
 
 	mux := http.NewServeMux()
 
@@ -106,11 +97,24 @@ func main() {
 	mux.Handle("/polling", setContentTypeJsonMiddleware(pollingHandler))
 
 	mux.HandleFunc("/favicon.ico", doNothing)
+
 	http.ListenAndServe(":80", mux)
 }
 
 var KafkaTopicNames = []string{
 	"streaming.extra-user-capacity-num",
+}
+
+func connectKafka() *kafka.Consumer {
+	c, err := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers": "localhost:29092",
+		"group.id":          "myGroup",
+		"auto.offset.reset": "earliest",
+	})
+	if err != nil {
+		panic(err)
+	}
+	return c
 }
 
 func updateUserCapacity(c *kafka.Consumer) {
