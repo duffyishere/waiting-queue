@@ -15,9 +15,9 @@ const RequestId = "request-id"
 // TODO: 별도의 쓰레드로 항상 Redis 와 동기화 되어있어야 함
 var userCapacity int64
 
-func waitingLine(w http.ResponseWriter, r *http.Request) {
+func waitingQueue(w http.ResponseWriter, r *http.Request) {
 	requestId := getRequestIdFromHeader(w.Header())
-	addLine(requestId)
+	addQueue(requestId)
 }
 
 type PollingResponse struct {
@@ -99,7 +99,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	finalHandler := http.HandlerFunc(waitingLine)
+	finalHandler := http.HandlerFunc(waitingQueue)
 	mux.Handle("/", generateRequestIdMiddleware(logMiddleWare(finalHandler)))
 
 	pollingHandler := http.HandlerFunc(polling)

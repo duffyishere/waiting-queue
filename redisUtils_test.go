@@ -8,7 +8,7 @@ import (
 var requestId = "testRequestId2"
 
 func TestAddLine(t *testing.T) {
-	addLine(requestId)
+	addQueue(requestId)
 }
 
 func TestGetWaitingNumBy(t *testing.T) {

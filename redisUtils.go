@@ -27,7 +27,7 @@ func connRedis() (*redis.Client, context.Context) {
 	return client, ctx
 }
 
-func addLine(requestId string) {
+func addQueue(requestId string) {
 	client, ctx := connRedis()
 	nextWaitingNum := increaseWaitingNum()
 	err := client.Set(ctx, requestId, nextWaitingNum, TopicExpiredTime).Err()
