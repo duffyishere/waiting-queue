@@ -30,8 +30,7 @@ Kafka를 통해 메인 서버에 추가로 입장할 수 있는 사용자 수를
 
 ## 비즈니스 로직 다이어그램
 
-![[대기서버_다이어그램.png]]
-(blob:https://velog.io/c8db4551-bf30-4401-a851-c91c91485f6c)
+![diagram](images/diagram.png)
 
 ```markdown
 1. 클라이언트가 로드밸런서에 의해 대기 서버로 요청됨.
