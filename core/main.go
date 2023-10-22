@@ -5,95 +5,26 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
-	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"net/http"
-	"strconv"
 )
-
-const (
-	RequestIdHeaderKey = "request-id"
-
-	KafkaAddr    = "localhost:29092"
-	KafkaGroupId = "myGroup"
-)
-
-var KafkaTopicNames = []string{
-	"streaming.extra-user-capacity-num",
-}
 
 var userCapacity int64
-var key = "12345678901234567890123456789012"
-var iv = "1234567890123456"
-
-type PollingResponse struct {
-	Result        bool   `json:"result"`
-	Ticket        string `json:"ticket"`
-	NowWaitingNum int64  `json:"now_waiting_num"`
-}
-
-func polling(w http.ResponseWriter, r *http.Request) {
-	requestId := getRequestIdFromHeader(r.Header)
-	println("Encrypt request id: ", requestId)
-	println("Decrypt request id: ", Ase256Decode(requestId, key, iv))
-}
-
-func getRequestIdFromHeader(h http.Header) string {
-	requestId := h.Get(RequestIdHeaderKey)
-	if requestId == "" {
-		panic("The request-id for that request does not exist.")
-	}
-	return requestId
-}
-
-func doNothing(w http.ResponseWriter, r *http.Request) {}
-
-func setContentTypeJsonMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		next.ServeHTTP(w, r)
-	})
-}
-
-func generateRequestIdMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestId := Ase256Encode(strconv.FormatInt(getWaitingNum(), 10), key, iv, aes.BlockSize)
-		w.Header().Set(RequestIdHeaderKey, requestId)
-		next.ServeHTTP(w, r)
-	})
-}
-
-func logMiddleWare(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf(">>> Host: %s, URL: %s, RequestID: %s\n", r.Host, r.URL.Path, getRequestIdFromHeader(w.Header()))
-		next.ServeHTTP(w, r)
-	})
-}
 
 func main() {
 	mux := http.NewServeMux()
 	finalHandler := http.HandlerFunc(doNothing)
-	mux.Handle("/", generateRequestIdMiddleware(logMiddleWare(finalHandler)))
+	mux.Handle("/", GenerateRequestIdMiddleware(LogMiddleWare(finalHandler)))
 
-	pollingHandler := http.HandlerFunc(polling)
-	mux.Handle("/p", setContentTypeJsonMiddleware(pollingHandler))
+	pollingHandler := http.HandlerFunc(Polling)
+	mux.Handle("/p", SetContentTypeJsonMiddleware(pollingHandler))
 
 	mux.HandleFunc("/favicon.ico", doNothing)
 
 	http.ListenAndServe(":80", mux)
 }
 
-func connectKafka() *kafka.Consumer {
-	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": KafkaAddr,
-		"group.id":          KafkaGroupId,
-		"auto.offset.reset": "earliest",
-	})
-	if err != nil {
-		panic(err)
-	}
-	return consumer
-}
+var key = "12345678901234567890123456789012"
+var iv = "1234567890123456"
 
 func Ase256Encode(plaintext string, key string, iv string, blockSize int) string {
 	bKey := []byte(key)
