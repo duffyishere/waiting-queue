@@ -4,13 +4,11 @@ import (
 	"context"
 	"github.com/redis/go-redis/v9"
 	"strconv"
-	"time"
 )
 
 const (
-	RedisAddr        = "localhost:6379"
-	RedisPassword    = ""
-	TopicExpiredTime = time.Hour * 2
+	RedisAddr     = "localhost:6379"
+	RedisPassword = ""
 
 	NextWaitingNumTopic = "next_waiting_num"
 	EntryNumberTopic    = "entry_num"

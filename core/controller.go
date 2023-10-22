@@ -1,6 +1,10 @@
 package main
 
-import "net/http"
+import (
+	"crypto/aes"
+	"net/http"
+	"strconv"
+)
 
 type PollingResponse struct {
 	Result        bool   `json:"result"`
@@ -17,7 +21,8 @@ func Polling(w http.ResponseWriter, r *http.Request) {
 func GetRequestIdFromHeader(h http.Header) string {
 	requestId := h.Get(RequestIdHeaderKey)
 	if requestId == "" {
-		panic("The request-id for that request does not exist.")
+		requestId = Ase256Encode(strconv.FormatInt(GetWaitingNum(), 10), key, iv, aes.BlockSize)
+		h.Set(RequestIdHeaderKey, requestId)
 	}
 	return requestId
 }
