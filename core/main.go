@@ -1,13 +1,14 @@
 package main
 
 import (
-	"encoding/json"
+	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/hex"
 	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	"github.com/google/uuid"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 const (
@@ -22,11 +23,8 @@ var KafkaTopicNames = []string{
 }
 
 var userCapacity int64
-
-func waitingQueue(w http.ResponseWriter, r *http.Request) {
-	requestId := getRequestIdFromHeader(w.Header())
-	addQueue(requestId)
-}
+var key = "12345678901234567890123456789012"
+var iv = "1234567890123456"
 
 type PollingResponse struct {
 	Result        bool   `json:"result"`
@@ -36,30 +34,8 @@ type PollingResponse struct {
 
 func polling(w http.ResponseWriter, r *http.Request) {
 	requestId := getRequestIdFromHeader(r.Header)
-	waitingNum := getWaitingNumBy(requestId)
-	var data PollingResponse
-	if waitingNum < userCapacity {
-		// TODO: 암호화 된 입장권 생성
-		enterTicket := "test1234"
-		data = PollingResponse{
-			Result:        true,
-			Ticket:        enterTicket,
-			NowWaitingNum: 0,
-		}
-	} else {
-		data = PollingResponse{
-			Result:        false,
-			Ticket:        "",
-			NowWaitingNum: waitingNum,
-		}
-	}
-	jsonData, err := json.Marshal(data)
-	fmt.Println(string(jsonData))
-	if err != nil {
-		panic(err)
-	}
-
-	w.Write(jsonData)
+	println("Encrypt request id: ", requestId)
+	println("Decrypt request id: ", Ase256Decode(requestId, key, iv))
 }
 
 func getRequestIdFromHeader(h http.Header) string {
@@ -81,7 +57,7 @@ func setContentTypeJsonMiddleware(next http.Handler) http.Handler {
 
 func generateRequestIdMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestId := uuid.New().String()
+		requestId := Ase256Encode(strconv.FormatInt(getWaitingNum(), 10), key, iv, aes.BlockSize)
 		w.Header().Set(RequestIdHeaderKey, requestId)
 		next.ServeHTTP(w, r)
 	})
@@ -95,15 +71,12 @@ func logMiddleWare(next http.Handler) http.Handler {
 }
 
 func main() {
-	go updateUserCapacity(connectKafka())
-
 	mux := http.NewServeMux()
-
-	finalHandler := http.HandlerFunc(waitingQueue)
+	finalHandler := http.HandlerFunc(doNothing)
 	mux.Handle("/", generateRequestIdMiddleware(logMiddleWare(finalHandler)))
 
 	pollingHandler := http.HandlerFunc(polling)
-	mux.Handle("/polling", setContentTypeJsonMiddleware(pollingHandler))
+	mux.Handle("/p", setContentTypeJsonMiddleware(pollingHandler))
 
 	mux.HandleFunc("/favicon.ico", doNothing)
 
@@ -122,17 +95,37 @@ func connectKafka() *kafka.Consumer {
 	return consumer
 }
 
-func updateUserCapacity(consumer *kafka.Consumer) {
-	consumer.SubscribeTopics(KafkaTopicNames, nil)
-	for {
-		msg, err := consumer.ReadMessage(time.Second)
-		if err == nil {
-			fmt.Printf("Message on %s: %s\n", msg.TopicPartition, string(msg.Value))
-			additionalUserCapacity, _ := strconv.ParseInt(string(msg.Value), 10, 64)
-			userCapacity = increaseUserCapacity(additionalUserCapacity)
-			fmt.Printf("Now user capacity: %d\n", userCapacity)
-		} else if !err.(kafka.Error).IsTimeout() {
-			fmt.Printf("Consumer error: %v (%v)\n", err, msg)
-		}
+func Ase256Encode(plaintext string, key string, iv string, blockSize int) string {
+	bKey := []byte(key)
+	bIV := []byte(iv)
+	bPlaintext := PKCS5Padding([]byte(plaintext), blockSize, len(plaintext))
+	block, _ := aes.NewCipher(bKey)
+	ciphertext := make([]byte, len(bPlaintext))
+	mode := cipher.NewCBCEncrypter(block, bIV)
+	mode.CryptBlocks(ciphertext, bPlaintext)
+	return hex.EncodeToString(ciphertext)
+}
+
+func Ase256Decode(cipherText string, encKey string, iv string) (decryptedString string) {
+	bKey := []byte(encKey)
+	bIV := []byte(iv)
+	cipherTextDecoded, err := hex.DecodeString(cipherText)
+	if err != nil {
+		panic(err)
 	}
+
+	block, err := aes.NewCipher(bKey)
+	if err != nil {
+		panic(err)
+	}
+
+	mode := cipher.NewCBCDecrypter(block, bIV)
+	mode.CryptBlocks([]byte(cipherTextDecoded), []byte(cipherTextDecoded))
+	return string(cipherTextDecoded)
+}
+
+func PKCS5Padding(ciphertext []byte, blockSize int, after int) []byte {
+	padding := (blockSize - len(ciphertext)%blockSize)
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(ciphertext, padtext...)
 }

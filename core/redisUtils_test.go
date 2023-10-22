@@ -24,5 +24,5 @@ func TestIncreaseLastEnterNumBy(t *testing.T) {
 }
 
 func TestIncreaseWaitingNum(t *testing.T) {
-	fmt.Println("Increased waiting line number: ", increaseWaitingNum())
+	fmt.Println("Increased waiting line number: ", getWaitingNum())
 }
