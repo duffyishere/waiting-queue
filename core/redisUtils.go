@@ -11,6 +11,7 @@ const (
 	RedisPassword = ""
 
 	NextWaitingNumTopic = "next_waiting_num"
+	WaitingLineTopic    = "waiting_line"
 	EntryNumberTopic    = "entry_num"
 )
 
@@ -25,13 +26,31 @@ func connRedis() (*redis.Client, context.Context) {
 	return client, ctx
 }
 
-func GetWaitingNum() int64 {
+func getWaitingNum() int64 {
 	client, ctx := connRedis()
 	result, err := client.IncrBy(ctx, NextWaitingNumTopic, 1).Result()
 	if err != nil {
 		panic(err)
 	}
 	return result
+}
+
+func PutWaitingNum(uuid string) int64 {
+	nextWaitingNum := getWaitingNum()
+	client, ctx := connRedis()
+	client.Append(ctx, uuid, strconv.FormatInt(nextWaitingNum, 10))
+
+	return nextWaitingNum
+}
+
+func GetWaitingNumByRequestId(uuid string) int64 {
+	client, ctx := connRedis()
+	result, err := client.Get(ctx, uuid).Result()
+	if err != nil {
+		return PutWaitingNum(uuid)
+	}
+	ret, _ := strconv.ParseInt(result, 10, 64)
+	return ret
 }
 
 func GetEntryNum() int64 {

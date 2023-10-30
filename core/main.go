@@ -5,15 +5,13 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
+	"encoding/json"
+	"github.com/google/uuid"
 	"net/http"
 )
 
-var userCapacity int64
-
 func main() {
 	mux := http.NewServeMux()
-	finalHandler := http.HandlerFunc(doNothing)
-	mux.Handle("/", GenerateRequestIdMiddleware(LogMiddleWare(finalHandler)))
 
 	pollingHandler := http.HandlerFunc(Polling)
 	mux.Handle("/p", SetContentTypeJsonMiddleware(pollingHandler))
@@ -23,8 +21,58 @@ func main() {
 	http.ListenAndServe(":80", mux)
 }
 
+const RequestIdHeaderKey = "request-id"
+const TicketValue = "thisisverifiedticket"
+
 var key = "12345678901234567890123456789012"
 var iv = "1234567890123456"
+
+type Response struct {
+	RequestId  string `json:"requestId"`
+	WaitingNum int64  `json:"waitingNum"`
+	Ticket     string `json:"ticket"`
+}
+
+func Polling(w http.ResponseWriter, r *http.Request) {
+	requestId := GetRequestIdFromHeader(r.Header)
+	waitingNum := GetWaitingNumByRequestId(requestId)
+	entryNum := GetEntryNum()
+	response := Response{}
+	if entryNum < waitingNum {
+		response = Response{RequestId: requestId, WaitingNum: waitingNum, Ticket: ""}
+	} else {
+		response = Response{RequestId: requestId, WaitingNum: waitingNum, Ticket: ticketing()}
+	}
+
+	responseJson, err := json.Marshal(response)
+	if err != nil {
+		panic(err)
+	}
+
+	w.Write(responseJson)
+}
+
+func ticketing() string {
+	return Ase256Decode(TicketValue, key, iv)
+}
+
+func GetRequestIdFromHeader(h http.Header) string {
+	requestId := h.Get(RequestIdHeaderKey)
+	if requestId == "" {
+		requestId = uuid.NewString()
+		h.Set(RequestIdHeaderKey, requestId)
+	}
+	return requestId
+}
+
+func doNothing(w http.ResponseWriter, r *http.Request) {}
+
+func SetContentTypeJsonMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
+}
 
 func Ase256Encode(plaintext string, key string, iv string, blockSize int) string {
 	bKey := []byte(key)
