@@ -11,7 +11,6 @@ const (
 	RedisPassword = ""
 
 	NextWaitingNumTopic = "next_waiting_num"
-	WaitingLineTopic    = "waiting_line"
 	EntryNumberTopic    = "entry_num"
 )
 
@@ -57,7 +56,7 @@ func GetEntryNum() int64 {
 	client, ctx := connRedis()
 	result, err := client.Get(ctx, EntryNumberTopic).Result()
 	if err != nil {
-		panic(err)
+		client.IncrBy(ctx, EntryNumberTopic, 1)
 	}
 	ret, _ := strconv.ParseInt(result, 10, 64)
 	return ret

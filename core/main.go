@@ -53,7 +53,7 @@ func Polling(w http.ResponseWriter, r *http.Request) {
 }
 
 func ticketing() string {
-	return Ase256Decode(TicketValue, key, iv)
+	return Ase256Encode(TicketValue, key, iv, 64)
 }
 
 func GetRequestIdFromHeader(h http.Header) string {
