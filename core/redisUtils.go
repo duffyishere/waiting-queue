@@ -54,12 +54,20 @@ func AddEntryNumber(client *redis.Client, ctx context.Context, num int64) {
 	if err != nil {
 		panic(err)
 	}
+	removeForWaitingLine(client, ctx, num-1)
 	addRunningMap(client, ctx, values)
 }
 
 func addRunningMap(client *redis.Client, ctx context.Context, uuid []string) {
 	result, err := client.HMSet(ctx, RunningMapTopic, uuid).Result()
 	if !result || err != nil {
+		panic(err)
+	}
+}
+
+func removeForWaitingLine(client *redis.Client, ctx context.Context, num int64) {
+	err := client.ZRemRangeByRank(ctx, WaitingLineTopic, 0, num).Err()
+	if err != nil {
 		panic(err)
 	}
 }
