@@ -22,26 +22,29 @@ func main() {
 }
 
 const RequestIdHeaderKey = "request-id"
-const TicketValue = "thisisverifiedticket"
 
 var key = "12345678901234567890123456789012"
 var iv = "1234567890123456"
 
 type Response struct {
-	RequestId  string `json:"requestId"`
-	WaitingNum int64  `json:"waitingNum"`
-	Ticket     string `json:"ticket"`
+	RequestId string `json:"requestId"`
+	Ticket    string `json:"ticket"`
 }
 
 func Polling(w http.ResponseWriter, r *http.Request) {
-	requestId := GetRequestIdFromHeader(r.Header)
-	waitingNum := GetWaitingNumByRequestId(requestId)
-	entryNum := GetEntryNum()
+	uuid := GetRequestIdFromHeader(r.Header)
+	client, ctx := connRedis()
 	response := Response{}
-	if entryNum < waitingNum {
-		response = Response{RequestId: requestId, WaitingNum: waitingNum, Ticket: ""}
+
+	if IsAlreadyWaiting(client, ctx, uuid) {
+		if !CanEnter(client, ctx, uuid) {
+			response = Response{RequestId: uuid, Ticket: ""}
+		} else {
+			response = Response{RequestId: uuid, Ticket: ticketing(uuid)}
+		}
 	} else {
-		response = Response{RequestId: requestId, WaitingNum: waitingNum, Ticket: ticketing()}
+		AddWaitingLine(client, ctx, uuid)
+		response = Response{RequestId: uuid, Ticket: ""}
 	}
 
 	responseJson, err := json.Marshal(response)
@@ -52,8 +55,8 @@ func Polling(w http.ResponseWriter, r *http.Request) {
 	w.Write(responseJson)
 }
 
-func ticketing() string {
-	return Ase256Encode(TicketValue, key, iv, 64)
+func ticketing(uuid string) string {
+	return Ase256Encode(uuid, key, iv, 64)
 }
 
 func GetRequestIdFromHeader(h http.Header) string {
