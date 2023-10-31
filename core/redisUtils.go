@@ -50,18 +50,22 @@ func CanEnter(client *redis.Client, ctx context.Context, uuid string) bool {
 
 func AddEntryNumber(client *redis.Client, ctx context.Context, num int64) {
 	client.IncrBy(ctx, EntryNumberTopic, num)
+	num = num - 1
 	values, err := client.ZRange(ctx, WaitingLineTopic, 0, num).Result()
 	if err != nil {
 		panic(err)
 	}
-	removeForWaitingLine(client, ctx, num-1)
+	removeForWaitingLine(client, ctx, num)
 	addRunningMap(client, ctx, values)
 }
 
-func addRunningMap(client *redis.Client, ctx context.Context, uuid []string) {
-	result, err := client.HMSet(ctx, RunningMapTopic, uuid).Result()
-	if !result || err != nil {
-		panic(err)
+func addRunningMap(client *redis.Client, ctx context.Context, uuids []string) {
+	for i := range uuids {
+		println("UUID: ", uuids[i])
+		err := client.HSet(ctx, RunningMapTopic, uuids[i], 0).Err()
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 

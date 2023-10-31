@@ -2,6 +2,7 @@ package main
 
 import "testing"
 
-func TestGetWaitingNumByRequestId(t *testing.T) {
-	GetWaitingNumByRequestId("test2")
+func TestAddEntryNumber(t *testing.T) {
+	client, ctx := connRedis()
+	AddEntryNumber(client, ctx, 1)
 }
