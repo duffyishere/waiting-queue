@@ -18,7 +18,7 @@ func main() {
 
 	mux.HandleFunc("/favicon.ico", doNothing)
 
-	http.ListenAndServe(":80", mux)
+	http.ListenAndServe(":3000", mux)
 }
 
 const RequestIdHeaderKey = "request-id"
