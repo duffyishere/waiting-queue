@@ -13,8 +13,8 @@ import (
 func main() {
 	mux := http.NewServeMux()
 
-	pollingHandler := http.HandlerFunc(Polling)
-	mux.Handle("/p", SetContentTypeJsonMiddleware(pollingHandler))
+	pollingHandler := http.HandlerFunc(polling)
+	mux.Handle("/p", setContentTypeJsonMiddleware(pollingHandler))
 
 	mux.HandleFunc("/favicon.ico", doNothing)
 
@@ -31,9 +31,9 @@ type Response struct {
 	Ticket    string `json:"ticket"`
 }
 
-func Polling(w http.ResponseWriter, r *http.Request) {
-	uuid := GetRequestIdFromHeader(r.Header)
-	client, ctx := connRedis()
+func polling(w http.ResponseWriter, r *http.Request) {
+	uuid := getRequestIdFromHeader(r.Header)
+	client, ctx := ConnRedis()
 	response := Response{}
 
 	if IsAlreadyWaiting(client, ctx, uuid) {
@@ -56,10 +56,10 @@ func Polling(w http.ResponseWriter, r *http.Request) {
 }
 
 func ticketing(uuid string) string {
-	return Ase256Encode(uuid, key, iv, 64)
+	return ase256Encode(uuid, key, iv, 64)
 }
 
-func GetRequestIdFromHeader(h http.Header) string {
+func getRequestIdFromHeader(h http.Header) string {
 	requestId := h.Get(RequestIdHeaderKey)
 	if requestId == "" {
 		requestId = uuid.NewString()
@@ -70,14 +70,14 @@ func GetRequestIdFromHeader(h http.Header) string {
 
 func doNothing(w http.ResponseWriter, r *http.Request) {}
 
-func SetContentTypeJsonMiddleware(next http.Handler) http.Handler {
+func setContentTypeJsonMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		next.ServeHTTP(w, r)
 	})
 }
 
-func Ase256Encode(plaintext string, key string, iv string, blockSize int) string {
+func ase256Encode(plaintext string, key string, iv string, blockSize int) string {
 	bKey := []byte(key)
 	bIV := []byte(iv)
 	bPlaintext := PKCS5Padding([]byte(plaintext), blockSize, len(plaintext))
@@ -88,7 +88,7 @@ func Ase256Encode(plaintext string, key string, iv string, blockSize int) string
 	return hex.EncodeToString(ciphertext)
 }
 
-func Ase256Decode(cipherText string, encKey string, iv string) (decryptedString string) {
+func ase256Decode(cipherText string, encKey string, iv string) (decryptedString string) {
 	bKey := []byte(encKey)
 	bIV := []byte(iv)
 	cipherTextDecoded, err := hex.DecodeString(cipherText)

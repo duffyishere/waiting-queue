@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"github.com/redis/go-redis/v9"
-	"strconv"
 	"time"
 )
 
@@ -16,7 +15,7 @@ const (
 	EntryNumberTopic = "entry_num"
 )
 
-func connRedis() (*redis.Client, context.Context) {
+func ConnRedis() (*redis.Client, context.Context) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     RedisAddr,
 		Password: RedisPassword,
@@ -74,14 +73,4 @@ func removeForWaitingLine(client *redis.Client, ctx context.Context, num int64) 
 	if err != nil {
 		panic(err)
 	}
-}
-
-func GetEntryNum() int64 {
-	client, ctx := connRedis()
-	result, err := client.Get(ctx, EntryNumberTopic).Result()
-	if err != nil {
-		client.IncrBy(ctx, EntryNumberTopic, 1)
-	}
-	ret, _ := strconv.ParseInt(result, 10, 64)
-	return ret
 }
