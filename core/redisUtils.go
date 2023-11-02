@@ -4,14 +4,16 @@ import (
 	"context"
 	"github.com/redis/go-redis/v9"
 	"strconv"
+	"time"
 )
 
 const (
 	RedisAddr     = "localhost:6379"
 	RedisPassword = ""
 
-	NextWaitingNumTopic = "next_waiting_num"
-	EntryNumberTopic    = "entry_num"
+	WaitingLineTopic = "waiting_line"
+	RunningMapTopic  = "running_map"
+	EntryNumberTopic = "entry_num"
 )
 
 func connRedis() (*redis.Client, context.Context) {
@@ -25,31 +27,53 @@ func connRedis() (*redis.Client, context.Context) {
 	return client, ctx
 }
 
-func getWaitingNum() int64 {
-	client, ctx := connRedis()
-	result, err := client.IncrBy(ctx, NextWaitingNumTopic, 1).Result()
+func AddWaitingLine(client *redis.Client, ctx context.Context, uuid string) {
+	score := float64(time.Now().Unix())
+	client.ZAdd(ctx, WaitingLineTopic, redis.Z{Score: score, Member: uuid})
+}
+
+func IsAlreadyWaiting(client *redis.Client, ctx context.Context, uuid string) bool {
+	err := client.ZScore(ctx, WaitingLineTopic, uuid).Err()
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func CanEnter(client *redis.Client, ctx context.Context, uuid string) bool {
+	err := client.HMGet(ctx, RunningMapTopic, uuid).Err()
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func AddEntryNumber(client *redis.Client, ctx context.Context, num int64) {
+	client.IncrBy(ctx, EntryNumberTopic, num)
+	num = num - 1
+	values, err := client.ZRange(ctx, WaitingLineTopic, 0, num).Result()
 	if err != nil {
 		panic(err)
 	}
-	return result
+	removeForWaitingLine(client, ctx, num)
+	addRunningMap(client, ctx, values)
 }
 
-func PutWaitingNum(uuid string) int64 {
-	nextWaitingNum := getWaitingNum()
-	client, ctx := connRedis()
-	client.Append(ctx, uuid, strconv.FormatInt(nextWaitingNum, 10))
-
-	return nextWaitingNum
-}
-
-func GetWaitingNumByRequestId(uuid string) int64 {
-	client, ctx := connRedis()
-	result, err := client.Get(ctx, uuid).Result()
-	if err != nil {
-		return PutWaitingNum(uuid)
+func addRunningMap(client *redis.Client, ctx context.Context, uuids []string) {
+	for i := range uuids {
+		println("UUID: ", uuids[i])
+		err := client.HSet(ctx, RunningMapTopic, uuids[i], 0).Err()
+		if err != nil {
+			panic(err)
+		}
 	}
-	ret, _ := strconv.ParseInt(result, 10, 64)
-	return ret
+}
+
+func removeForWaitingLine(client *redis.Client, ctx context.Context, num int64) {
+	err := client.ZRemRangeByRank(ctx, WaitingLineTopic, 0, num).Err()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func GetEntryNum() int64 {
