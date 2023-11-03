@@ -27,7 +27,7 @@ var key = "12345678901234567890123456789012"
 var iv = "1234567890123456"
 
 type Response struct {
-	RequestId string `json:"requestId"`
+	RequestId string `json:"request-id"`
 	Ticket    string `json:"ticket"`
 }
 
