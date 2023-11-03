@@ -7,10 +7,31 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	"log"
 	"net/http"
+	"os"
+)
+
+var (
+	requestIdHeaderKey = ""
+	key                = ""
+	iv                 = ""
+	redisHost          = ""
+	redisPassword      = ""
 )
 
 func main() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatal("Cannot find '.env' file. Please check you've added the env file.")
+	}
+	requestIdHeaderKey = os.Getenv("REQUEST_ID_HEADER_KEY_NAME")
+	key = os.Getenv("ASE256_KEY")
+	iv = os.Getenv("ASE256_IV")
+	redisHost = os.Getenv("REDIS_HOST")
+	redisPassword = os.Getenv("REDIS_PASSWORD")
+
 	mux := http.NewServeMux()
 
 	pollingHandler := http.HandlerFunc(polling)
@@ -20,11 +41,6 @@ func main() {
 
 	http.ListenAndServe(":3000", mux)
 }
-
-const RequestIdHeaderKey = "request-id"
-
-var key = "12345678901234567890123456789012"
-var iv = "1234567890123456"
 
 type Response struct {
 	RequestId string `json:"request-id"`
@@ -60,10 +76,10 @@ func ticketing(uuid string) string {
 }
 
 func getRequestIdFromHeader(h http.Header) string {
-	requestId := h.Get(RequestIdHeaderKey)
+	requestId := h.Get(requestIdHeaderKey)
 	if requestId == "" {
 		requestId = uuid.NewString()
-		h.Set(RequestIdHeaderKey, requestId)
+		h.Set(requestIdHeaderKey, requestId)
 	}
 	return requestId
 }

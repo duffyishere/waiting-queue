@@ -7,9 +7,6 @@ import (
 )
 
 const (
-	RedisAddr     = "localhost:6379"
-	RedisPassword = ""
-
 	WaitingLineTopic = "waiting_line"
 	RunningMapTopic  = "running_map"
 	EntryNumberTopic = "entry_num"
@@ -17,8 +14,8 @@ const (
 
 func ConnRedis() (*redis.Client, context.Context) {
 	client := redis.NewClient(&redis.Options{
-		Addr:     RedisAddr,
-		Password: RedisPassword,
+		Addr:     redisHost,
+		Password: redisPassword,
 		DB:       0,
 	})
 	ctx := context.Background()
