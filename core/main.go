@@ -44,25 +44,29 @@ func main() {
 
 type Response struct {
 	RequestId string `json:"request-id"`
+	Count     int64  `json:"count"`
 	Ticket    string `json:"ticket"`
 }
 
 func polling(w http.ResponseWriter, r *http.Request) {
-	uuid := getRequestIdFromHeader(r.Header)
+	uid := getRequestIdFromHeader(r.Header)
 	client, ctx := ConnRedis()
 	response := Response{}
-
-	if IsAlreadyWaiting(client, ctx, uuid) {
-		if !CanEnter(client, ctx, uuid) {
-			response = Response{RequestId: uuid, Ticket: ""}
-		} else {
-			response = Response{RequestId: uuid, Ticket: ticketing(uuid)}
+	canEnter := false
+	if IsAlreadyWaiting(client, ctx, uid) {
+		if CanEnter(client, ctx, uid) {
+			canEnter = true
 		}
 	} else {
-		AddWaitingLine(client, ctx, uuid)
-		response = Response{RequestId: uuid, Ticket: ""}
+		AddWaitingLine(client, ctx, uid)
 	}
 
+	count := GetCustomerCount(client, ctx)
+	if canEnter {
+		response = Response{RequestId: uid, Count: count, Ticket: ""}
+	} else {
+		response = Response{RequestId: uid, Count: count, Ticket: ticketing(uid)}
+	}
 	responseJson, err := json.Marshal(response)
 	if err != nil {
 		panic(err)

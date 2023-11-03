@@ -44,6 +44,14 @@ func CanEnter(client *redis.Client, ctx context.Context, uuid string) bool {
 	return true
 }
 
+func GetCustomerCount(client *redis.Client, ctx context.Context) int64 {
+	count, err := client.ZCard(ctx, WaitingLineTopic).Result()
+	if err != nil {
+		panic(panic)
+	}
+	return count
+}
+
 func AddEntryNumber(client *redis.Client, ctx context.Context, num int64) {
 	client.IncrBy(ctx, EntryNumberTopic, num)
 	num = num - 1
